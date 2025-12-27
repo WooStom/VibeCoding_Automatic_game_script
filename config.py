@@ -1,0 +1,29 @@
+from pathlib import Path
+
+# Directories
+PROJECT_ROOT = Path(__file__).resolve().parent
+LOG_DIR = PROJECT_ROOT / "logs"
+ASSETS_DIR = PROJECT_ROOT / "assets"
+
+# Window / process configuration
+GAME_WINDOW_TITLE = "LimbusCompany"
+GAME_PROCESS_NAMES = ["LimbusCompany.exe", "Limbus Company.exe"]
+MONITOR_INDEX = 1  # 1-based index used by mss
+
+# Timeouts (seconds)
+STATE_TIMEOUTS = {
+    "S1_WAIT_LOGIN": 30.0,
+    "S2_CLICK_LOGIN": 5.0,
+    "S3_WAIT_MAINMENU": 45.0,
+}
+
+# Polling intervals
+CHECK_INTERVAL = 0.5
+
+# Template match settings
+TEMPLATE_MATCH_THRESHOLD = 0.85
+
+# Assets
+LOGIN_MARKER = ASSETS_DIR / "login_marker_A.png"
+CONNECTING_MARKER = ASSETS_DIR / "connecting_marker.png"
+MAINMENU_MARKER = ASSETS_DIR / "mainmenu_marker_B.png"
