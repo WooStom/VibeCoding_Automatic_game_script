@@ -42,8 +42,6 @@ class StateMachine:
                     if not self.ensure_foreground():
                         self.fail(state, "无法找到或激活游戏窗口", kill=False)
                         return
-                    if not self.verify_assets():
-                        return
                     state = State.S1_WAIT_LOGIN
                     self.logger.info(f"切换到 {state.value}")
 
@@ -130,9 +128,6 @@ class StateMachine:
 
     def fail(self, state: State, reason: str, kill: bool = True) -> None:
         self.logger.error(f"[{state.value}] 失败: {reason}")
-        img = screen.capture_window(config.GAME_WINDOW_TITLE)
-        shot_path = screen.save_screenshot(img, state.value, prefix="fail")
-        self.logger.info(f"[{state.value}] 失败截图保存到: {shot_path}")
         if kill:
             self.kill_game()
         sys.exit(1)
@@ -163,15 +158,6 @@ class StateMachine:
                 return True
             time.sleep(config.GAME_READY_CHECK_INTERVAL)
         return False
-
-    def verify_assets(self) -> bool:
-        missing = [path for path in (config.LOGIN_MARKER, config.CONNECTING_MARKER, config.MAINMENU_MARKER) if not path.is_file()]
-        if missing:
-            for path in missing:
-                self.logger.error(f"资源文件缺失: {path.resolve()}")
-            self.fail(State.S0_START, "必需的资源文件缺失", kill=False)
-            return False
-        return True
 
     def ensure_foreground(self) -> bool:
         hwnd = screen.get_window_handle(config.GAME_WINDOW_TITLE)

@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -75,20 +74,6 @@ def capture_window(title: str) -> np.ndarray:
     win32gui.ReleaseDC(hdesktop, desktop_dc)
 
     return img
-
-
-def save_screenshot(image: np.ndarray, state_name: str, prefix: str) -> Path:
-    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    path = config.LOG_DIR / f"{prefix}_{state_name}_{timestamp}.png"
-    if image.ndim == 3 and image.shape[2] == 4:
-        bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-    elif image.ndim == 3:
-        bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    else:
-        bgr_image = image
-    cv2.imwrite(str(path), bgr_image)
-    return path
 
 
 def click_point(point: Point) -> None:
