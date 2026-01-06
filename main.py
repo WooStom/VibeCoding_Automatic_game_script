@@ -26,6 +26,7 @@ class StateMachine:
     def __init__(self) -> None:
         self.logger = setup_logger()
         self.last_marker_position: Optional[Tuple[int, int]] = None
+        self.last_click_ts: float = 0.0
 
     def run(self) -> None:
         state = State.S0_START
@@ -215,10 +216,17 @@ class StateMachine:
         start = time.time()
         best_mainmenu = -1.0
         best_connecting = -1.0
-        last_click = 0.0
 
         while time.time() - start <= config.STATE_TIMEOUTS["S1_WAIT_LOGIN"]:
             img = screen.capture_window(config.GAME_WINDOW_TITLE)
+
+            connecting_hit, _, connecting_score = screen.template_match(img, config.CONNECTING_MARKER)
+            if connecting_score > best_connecting:
+                best_connecting = connecting_score
+                self.logger.info(f"[{state.value}] 连接最高分更新为 {best_connecting:.4f}")
+            if connecting_hit:
+                self.logger.info(f"[{state.value}] 检测到连接标记，停止点击，匹配分 {connecting_score:.4f}")
+                return State.S3_WAIT_MAINMENU
 
             main_hit, _, main_score = screen.template_match(img, config.MAINMENU_MARKER)
             if main_score > best_mainmenu:
@@ -228,16 +236,12 @@ class StateMachine:
                 self.logger.info(f"[{state.value}] 检测到主菜单，匹配分 {main_score:.4f}")
                 return State.S_OK
 
-            connecting_hit, _, connecting_score = screen.template_match(img, config.CONNECTING_MARKER)
-            if connecting_score > best_connecting:
-                best_connecting = connecting_score
-                self.logger.info(f"[{state.value}] 连接最高分更新为 {best_connecting:.4f}")
-            if connecting_hit:
-                self.logger.info(f"[{state.value}] 检测到连接标记，匹配分 {connecting_score:.4f}")
-                return State.S3_WAIT_MAINMENU
-
             now = time.time()
-            if now - last_click >= config.CLICK_INTERVAL:
+            since_click = now - self.last_click_ts
+            if since_click < config.CLICK_COOLDOWN:
+                remaining = config.CLICK_COOLDOWN - since_click
+                self.logger.info(f"[{state.value}] 冷却中跳过点击，剩余 {remaining:.2f}s")
+            else:
                 if not self.ensure_foreground():
                     self.fail(state, "无法激活窗口执行安全点击")
                     return None
@@ -246,8 +250,8 @@ class StateMachine:
                     self.fail(state, "无法获取窗口安全点击位置")
                     return None
                 screen.click_point(point)
+                self.last_click_ts = now
                 self.logger.info(f"[{state.value}] 安全点击窗口坐标 {point}")
-                last_click = now
 
             time.sleep(config.CHECK_INTERVAL)
 
