@@ -1,0 +1,8 @@
+2026-01-06 15:40:30 [INFO] [limbus_automation] 进入状态 S0_START
+2026-01-06 15:40:30 [INFO] [limbus_automation] 未检测到游戏进程，尝试通过 Steam 启动
+2026-01-06 15:40:32 [INFO] [limbus_automation] 检测到游戏进程已启动
+2026-01-06 15:40:32 [INFO] [limbus_automation] 等待游戏就绪…
+2026-01-06 15:40:32 [INFO] [limbus_automation] [S0_START] hwnd=N, focus=N, 截图来源=monitor, 尺寸=1920x1080, 黑屏=False
+2026-01-06 15:40:32 [ERROR] [limbus_automation] [S0_START] 失败: 无法找到或激活游戏窗口
+2026-01-06 15:40:32 [INFO] [limbus_automation] [S0_START] 失败截图保存到: G:\Project\limbuscompany 脚本\VibeCoding_Automatic_game_script\logs\fail_S0_START_20260106_154032.png
+2026-01-06 15:40:32 [INFO] [limbus_automation] 结束进程 LimbusCompany.exe (512096)
