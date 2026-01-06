@@ -1,0 +1,10 @@
+2026-01-05 11:27:03 [INFO] [limbus_automation] 进入状态 S0_START
+2026-01-05 11:27:03 [INFO] [limbus_automation] 未检测到游戏进程，尝试通过 Steam 启动
+2026-01-05 11:27:06 [INFO] [limbus_automation] 检测到游戏进程已启动
+2026-01-05 11:27:06 [INFO] [limbus_automation] 等待游戏就绪…
+2026-01-05 11:27:06 [INFO] [limbus_automation] [S0_START] hwnd=Y, focus=Y, 截图来源=window, 尺寸=320x240, 黑屏=False
+2026-01-05 11:27:06 [ERROR] [limbus_automation] 资源文件缺失: G:\Project\limbuscompany 脚本\VibeCoding_Automatic_game_script\assets\login_marker_A.png
+2026-01-05 11:27:06 [ERROR] [limbus_automation] 资源文件缺失: G:\Project\limbuscompany 脚本\VibeCoding_Automatic_game_script\assets\connecting_marker.png
+2026-01-05 11:27:06 [ERROR] [limbus_automation] 资源文件缺失: G:\Project\limbuscompany 脚本\VibeCoding_Automatic_game_script\assets\mainmenu_marker_B.png
+2026-01-05 11:27:06 [ERROR] [limbus_automation] [S0_START] 失败: 必需的资源文件缺失
+2026-01-05 11:27:06 [INFO] [limbus_automation] [S0_START] 失败截图保存到: G:\Project\limbuscompany 脚本\VibeCoding_Automatic_game_script\logs\fail_S0_START_20260105_112706.png
