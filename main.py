@@ -34,38 +34,35 @@ class StateMachine:
             while True:
                 if state == State.S0_START:
                     if not self.ensure_game_running():
-                        self.fail(state, "未检测到游戏进程且启动失败", kill=False)
+                        self.fail(state, "未检测到游戏进程且启动失败")
                         return
                     if not self.wait_game_ready():
-                        self.fail(state, "等待游戏窗口就绪超时", kill=False)
+                        self.fail(state, "等待游戏窗口就绪超时")
                         return
                     if not self.ensure_foreground():
-                        self.fail(state, "无法找到或激活游戏窗口", kill=False)
+                        self.fail(state, "无法找到或激活游戏窗口")
                         return
                     state = State.S1_WAIT_LOGIN
                     self.logger.info(f"切换到 {state.value}")
 
                 elif state == State.S1_WAIT_LOGIN:
-                    pos, best_score = self.wait_for_marker(
-                        marker_path=config.LOGIN_MARKER,
-                        timeout=config.STATE_TIMEOUTS["S1_WAIT_LOGIN"],
-                        state=state,
-                    )
-                    if pos is None:
-                        self.fail(state, f"未检测到登录界面标记，最高分 {best_score:.4f}")
+                    state = self.wait_login_with_safe_clicks(state)
+                    if state is None:
                         return
-                    self.last_marker_position = pos
-                    state = State.S2_CLICK_LOGIN
                     self.logger.info(f"切换到 {state.value}")
 
                 elif state == State.S2_CLICK_LOGIN:
-                    if self.last_marker_position:
-                        screen.click_point(self.last_marker_position)
-                        self.logger.info("执行登录点击")
-                    else:
-                        self.logger.warning("缺少登录标记位置，使用屏幕中心点击")
-                        width, height = pyautogui.size()
-                        screen.click_point((width // 2, height // 2))
+                    if not self.ensure_foreground():
+                        self.fail(state, "无法激活窗口执行点击")
+                        return
+
+                    point = screen.window_safe_click_point(config.GAME_WINDOW_TITLE)
+                    if point is None:
+                        self.fail(state, "无法获取安全点击位置")
+                        return
+
+                    screen.click_point(point)
+                    self.logger.info(f"执行登录点击 {point}")
 
                     if not self.wait_for_transition(
                         expected_marker=config.CONNECTING_MARKER,
@@ -100,7 +97,7 @@ class StateMachine:
 
     def wait_for_marker(self, marker_path, timeout: float, state: State) -> Tuple[Optional[Tuple[int, int]], float]:
         start = time.time()
-        best_score = 0.0
+        best_score = -1.0
         while time.time() - start <= timeout:
             img = screen.capture_window(config.GAME_WINDOW_TITLE)
             matched, pos, score = screen.template_match(img, marker_path)
@@ -128,6 +125,9 @@ class StateMachine:
 
     def fail(self, state: State, reason: str, kill: bool = True) -> None:
         self.logger.error(f"[{state.value}] 失败: {reason}")
+        img = screen.capture_window(config.GAME_WINDOW_TITLE)
+        shot_path = screen.save_screenshot(img, state.value, prefix="fail")
+        self.logger.info(f"[{state.value}] 失败截图保存到: {shot_path}")
         if kill:
             self.kill_game()
         sys.exit(1)
@@ -210,6 +210,52 @@ class StateMachine:
                     proc.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
+
+    def wait_login_with_safe_clicks(self, state: State) -> Optional[State]:
+        start = time.time()
+        best_mainmenu = -1.0
+        best_connecting = -1.0
+        last_click = 0.0
+
+        while time.time() - start <= config.STATE_TIMEOUTS["S1_WAIT_LOGIN"]:
+            img = screen.capture_window(config.GAME_WINDOW_TITLE)
+
+            main_hit, _, main_score = screen.template_match(img, config.MAINMENU_MARKER)
+            if main_score > best_mainmenu:
+                best_mainmenu = main_score
+                self.logger.info(f"[{state.value}] 主菜单最高分更新为 {best_mainmenu:.4f}")
+            if main_hit:
+                self.logger.info(f"[{state.value}] 检测到主菜单，匹配分 {main_score:.4f}")
+                return State.S_OK
+
+            connecting_hit, _, connecting_score = screen.template_match(img, config.CONNECTING_MARKER)
+            if connecting_score > best_connecting:
+                best_connecting = connecting_score
+                self.logger.info(f"[{state.value}] 连接最高分更新为 {best_connecting:.4f}")
+            if connecting_hit:
+                self.logger.info(f"[{state.value}] 检测到连接标记，匹配分 {connecting_score:.4f}")
+                return State.S3_WAIT_MAINMENU
+
+            now = time.time()
+            if now - last_click >= config.CLICK_INTERVAL:
+                if not self.ensure_foreground():
+                    self.fail(state, "无法激活窗口执行安全点击")
+                    return None
+                point = screen.window_safe_click_point(config.GAME_WINDOW_TITLE)
+                if point is None:
+                    self.fail(state, "无法获取窗口安全点击位置")
+                    return None
+                screen.click_point(point)
+                self.logger.info(f"[{state.value}] 安全点击窗口坐标 {point}")
+                last_click = now
+
+            time.sleep(config.CHECK_INTERVAL)
+
+        self.fail(
+            state,
+            f"登录等待超时，主菜单最高分 {best_mainmenu:.4f}，连接最高分 {best_connecting:.4f}",
+        )
+        return None
 
 
 def main() -> None:

@@ -26,6 +26,7 @@ GAME_READY_CHECK_INTERVAL = 0.5
 
 # Polling intervals
 CHECK_INTERVAL = 0.5
+CLICK_INTERVAL = 2.0
 
 # Template match settings
 TEMPLATE_MATCH_THRESHOLD = 0.85

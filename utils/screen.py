@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -32,6 +33,13 @@ def _get_window_rect(hwnd: int) -> Optional[Tuple[int, int, int, int]]:
     if width <= 0 or height <= 0:
         return None
     return left, top, width, height
+
+
+def get_window_rect(title: str) -> Optional[Tuple[int, int, int, int]]:
+    hwnd = _get_window_handle(title)
+    if hwnd is None:
+        return None
+    return _get_window_rect(hwnd)
 
 
 def focus_window(hwnd: int) -> bool:
@@ -79,6 +87,16 @@ def capture_window(title: str) -> np.ndarray:
 def click_point(point: Point) -> None:
     x, y = point
     pyautogui.click(x, y)
+
+
+def window_safe_click_point(title: str, rx: float = 0.70, ry: float = 0.55) -> Optional[Point]:
+    rect = get_window_rect(title)
+    if rect is None:
+        return None
+    left, top, width, height = rect
+    x = left + int(width * rx)
+    y = top + int(height * ry)
+    return x, y
 
 
 def template_match(screen: np.ndarray, template_path: Path) -> Tuple[bool, Optional[Point], float]:
@@ -158,3 +176,17 @@ def is_mostly_black(image: np.ndarray, mean_threshold: float = 1.0, nonzero_rati
     mean_val = float(gray.mean())
     ratio = float(np.count_nonzero(gray)) / gray.size
     return mean_val <= mean_threshold or ratio <= nonzero_ratio
+
+
+def save_screenshot(image: np.ndarray, state_name: str, prefix: str) -> Path:
+    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    path = config.LOG_DIR / f"{prefix}_{state_name}_{timestamp}.png"
+    if image.ndim == 3 and image.shape[2] == 4:
+        bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+    elif image.ndim == 3:
+        bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    else:
+        bgr_image = image
+    cv2.imwrite(str(path), bgr_image)
+    return path
