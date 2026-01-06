@@ -1,8 +1,10 @@
+import os
 from pathlib import Path
 
 # Directories
 PROJECT_ROOT = Path(__file__).resolve().parent
-LOG_DIR = PROJECT_ROOT / "logs"
+_DESKTOP = Path(os.environ.get("USERPROFILE", Path.home())) / "Desktop"
+LOG_DIR = _DESKTOP / "limbus_automation_logs"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 
 # Window / process configuration
@@ -21,7 +23,7 @@ STATE_TIMEOUTS = {
 }
 
 # Game readiness
-GAME_READY_TIMEOUT = 150.0
+GAME_READY_TIMEOUT = 180.0
 GAME_READY_CHECK_INTERVAL = 0.5
 
 # Polling intervals
@@ -34,5 +36,6 @@ TEMPLATE_MATCH_THRESHOLD = 0.85
 
 # Assets
 LOGIN_MARKER = ASSETS_DIR / "login_marker_A.png"
+LOGIN_UI_MARKER = ASSETS_DIR / "login_ui_marker.png"
 CONNECTING_MARKER = ASSETS_DIR / "connecting_marker.png"
 MAINMENU_MARKER = ASSETS_DIR / "mainmenu_marker_B.png"

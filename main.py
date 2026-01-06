@@ -62,8 +62,12 @@ class StateMachine:
                         self.fail(state, "无法获取安全点击位置")
                         return
 
-                    screen.click_point(point)
-                    self.logger.info(f"执行登录点击 {point}")
+                    if not self._can_click_now():
+                        self.logger.info(f"[{state.value}] 冷却中跳过点击")
+                    else:
+                        screen.click_point(point)
+                        self.last_click_ts = time.time()
+                        self.logger.info(f"执行登录点击 {point}")
 
                     if not self.wait_for_transition(
                         expected_marker=config.CONNECTING_MARKER,
@@ -124,13 +128,11 @@ class StateMachine:
         self.logger.error(f"[{state.value}] 过渡超时 {expected_marker.name}")
         return False
 
-    def fail(self, state: State, reason: str, kill: bool = True) -> None:
+    def fail(self, state: State, reason: str) -> None:
         self.logger.error(f"[{state.value}] 失败: {reason}")
         img = screen.capture_window(config.GAME_WINDOW_TITLE)
         shot_path = screen.save_screenshot(img, state.value, prefix="fail")
         self.logger.info(f"[{state.value}] 失败截图保存到: {shot_path}")
-        if kill:
-            self.kill_game()
         sys.exit(1)
 
     def ensure_game_running(self) -> bool:
@@ -203,19 +205,11 @@ class StateMachine:
         self.logger.error("等待游戏进程超时")
         return False
 
-    def kill_game(self) -> None:
-        for proc in psutil.process_iter(attrs=["name", "pid"]):
-            try:
-                if proc.info["name"] in config.GAME_PROCESS_NAMES:
-                    self.logger.info(f"结束进程 {proc.info['name']} ({proc.info['pid']})")
-                    proc.terminate()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-
     def wait_login_with_safe_clicks(self, state: State) -> Optional[State]:
         start = time.time()
         best_mainmenu = -1.0
         best_connecting = -1.0
+        best_login_ui = -1.0
 
         while time.time() - start <= config.STATE_TIMEOUTS["S1_WAIT_LOGIN"]:
             img = screen.capture_window(config.GAME_WINDOW_TITLE)
@@ -224,34 +218,45 @@ class StateMachine:
             if connecting_score > best_connecting:
                 best_connecting = connecting_score
                 self.logger.info(f"[{state.value}] 连接最高分更新为 {best_connecting:.4f}")
-            if connecting_hit:
-                self.logger.info(f"[{state.value}] 检测到连接标记，停止点击，匹配分 {connecting_score:.4f}")
-                return State.S3_WAIT_MAINMENU
 
             main_hit, _, main_score = screen.template_match(img, config.MAINMENU_MARKER)
             if main_score > best_mainmenu:
                 best_mainmenu = main_score
                 self.logger.info(f"[{state.value}] 主菜单最高分更新为 {best_mainmenu:.4f}")
+
+            login_hit, _, login_score = screen.template_match(img, config.LOGIN_UI_MARKER)
+            if login_score > best_login_ui:
+                best_login_ui = login_score
+                self.logger.info(f"[{state.value}] 登录UI最高分更新为 {best_login_ui:.4f}")
+
             if main_hit:
                 self.logger.info(f"[{state.value}] 检测到主菜单，匹配分 {main_score:.4f}")
                 return State.S_OK
 
-            now = time.time()
-            since_click = now - self.last_click_ts
-            if since_click < config.CLICK_COOLDOWN:
-                remaining = config.CLICK_COOLDOWN - since_click
-                self.logger.info(f"[{state.value}] 冷却中跳过点击，剩余 {remaining:.2f}s")
+            if connecting_hit:
+                self.logger.info(f"[{state.value}] 检测到连接标记，停止点击，匹配分 {connecting_score:.4f}")
+                return State.S3_WAIT_MAINMENU
+
+            allow_click = login_hit
+            if not allow_click:
+                self.logger.info(f"[{state.value}] 未检测到登录UI标记，跳过点击")
             else:
-                if not self.ensure_foreground():
-                    self.fail(state, "无法激活窗口执行安全点击")
-                    return None
-                point = screen.window_safe_click_point(config.GAME_WINDOW_TITLE)
-                if point is None:
-                    self.fail(state, "无法获取窗口安全点击位置")
-                    return None
-                screen.click_point(point)
-                self.last_click_ts = now
-                self.logger.info(f"[{state.value}] 安全点击窗口坐标 {point}")
+                now = time.time()
+                since_click = now - self.last_click_ts
+                if not self._can_click_now():
+                    remaining = config.CLICK_COOLDOWN - since_click
+                    self.logger.info(f"[{state.value}] 冷却中跳过点击，剩余 {remaining:.2f}s")
+                else:
+                    if not self.ensure_foreground():
+                        self.fail(state, "无法激活窗口执行安全点击")
+                        return None
+                    point = screen.window_safe_click_point(config.GAME_WINDOW_TITLE)
+                    if point is None:
+                        self.logger.info(f"[{state.value}] 无法获取窗口安全点击位置，跳过点击")
+                    else:
+                        screen.click_point(point)
+                        self.last_click_ts = now
+                        self.logger.info(f"[{state.value}] 安全点击窗口坐标 {point}")
 
             time.sleep(config.CHECK_INTERVAL)
 
@@ -260,6 +265,10 @@ class StateMachine:
             f"登录等待超时，主菜单最高分 {best_mainmenu:.4f}，连接最高分 {best_connecting:.4f}",
         )
         return None
+
+    def _can_click_now(self) -> bool:
+        now = time.time()
+        return (now - self.last_click_ts) >= config.CLICK_COOLDOWN
 
 
 def main() -> None:
