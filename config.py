@@ -33,6 +33,8 @@ CLICK_COOLDOWN = 2.5
 
 # Template match settings
 TEMPLATE_MATCH_THRESHOLD = 0.85
+LOGIN_UI_THRESHOLD = 0.55
+LOGIN_UI_ROI = (0.0, 0.70, 0.35, 0.30)
 
 # Assets
 LOGIN_MARKER = ASSETS_DIR / "login_marker_A.png"

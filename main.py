@@ -33,6 +33,9 @@ class StateMachine:
         self.logger.info(f"进入状态 {state.value}")
         try:
             while True:
+                if state != State.S0_START and not self._has_running_game_process():
+                    self.logger.info("检测到游戏已关闭，脚本退出")
+                    return
                 if state == State.S0_START:
                     if not self.ensure_game_running():
                         self.fail(state, "未检测到游戏进程且启动失败")
@@ -224,10 +227,18 @@ class StateMachine:
                 best_mainmenu = main_score
                 self.logger.info(f"[{state.value}] 主菜单最高分更新为 {best_mainmenu:.4f}")
 
-            login_hit, _, login_score = screen.template_match(img, config.LOGIN_UI_MARKER)
+            login_hit, _, login_score = screen.template_match_roi(
+                img,
+                config.LOGIN_UI_MARKER,
+                config.LOGIN_UI_ROI,
+                config.LOGIN_UI_THRESHOLD,
+            )
             if login_score > best_login_ui:
                 best_login_ui = login_score
-                self.logger.info(f"[{state.value}] 登录UI最高分更新为 {best_login_ui:.4f}")
+                self.logger.info(
+                    f"[{state.value}] 登录UI最高分更新为 {best_login_ui:.4f} "
+                    f"(阈值 {config.LOGIN_UI_THRESHOLD:.2f})"
+                )
 
             if main_hit:
                 self.logger.info(f"[{state.value}] 检测到主菜单，匹配分 {main_score:.4f}")
@@ -239,7 +250,10 @@ class StateMachine:
 
             allow_click = login_hit
             if not allow_click:
-                self.logger.info(f"[{state.value}] 未检测到登录UI标记，跳过点击")
+                self.logger.info(
+                    f"[{state.value}] 登录UI匹配分 {login_score:.4f}，未达阈值 "
+                    f"{config.LOGIN_UI_THRESHOLD:.2f}，跳过点击"
+                )
             else:
                 now = time.time()
                 since_click = now - self.last_click_ts

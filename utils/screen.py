@@ -128,6 +128,48 @@ def template_match(screen: np.ndarray, template_path: Path) -> Tuple[bool, Optio
     return True, (center_x, center_y), float(max_val)
 
 
+def template_match_roi(
+    screen: np.ndarray,
+    template_path: Path,
+    roi: Tuple[float, float, float, float],
+    threshold: float,
+) -> Tuple[bool, Optional[Point], float]:
+    if not template_path.is_file():
+        return False, None, 0.0
+
+    template = cv2.imread(str(template_path), cv2.IMREAD_COLOR)
+    if template is None:
+        return False, None, 0.0
+
+    if screen.ndim == 3 and screen.shape[2] == 4:
+        haystack = cv2.cvtColor(screen, cv2.COLOR_BGRA2BGR)
+    elif screen.ndim == 3:
+        haystack = cv2.cvtColor(screen, cv2.COLOR_RGB2BGR)
+    else:
+        haystack = screen
+
+    height, width = haystack.shape[:2]
+    rx, ry, rw, rh = roi
+    roi_x = max(0, min(width - 1, int(width * rx)))
+    roi_y = max(0, min(height - 1, int(height * ry)))
+    roi_w = max(1, min(width - roi_x, int(width * rw)))
+    roi_h = max(1, min(height - roi_y, int(height * rh)))
+    sub_img = haystack[roi_y : roi_y + roi_h, roi_x : roi_x + roi_w]
+
+    if sub_img.shape[0] < template.shape[0] or sub_img.shape[1] < template.shape[1]:
+        return False, None, 0.0
+
+    result = cv2.matchTemplate(sub_img, template, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(result)
+    matched = max_val >= threshold
+    if not matched:
+        return False, None, float(max_val)
+
+    center_x = roi_x + max_loc[0] + template.shape[1] // 2
+    center_y = roi_y + max_loc[1] + template.shape[0] // 2
+    return True, (center_x, center_y), float(max_val)
+
+
 def get_window_handle(title: str) -> Optional[int]:
     return _get_window_handle(title)
 
