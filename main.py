@@ -136,6 +136,7 @@ class StateMachine:
         img = screen.capture_window(config.GAME_WINDOW_TITLE)
         shot_path = screen.save_screenshot(img, state.value, prefix="fail")
         self.logger.info(f"[{state.value}] 失败截图保存到: {shot_path}")
+        self.kill_game()
         sys.exit(1)
 
     def ensure_game_running(self) -> bool:
@@ -208,11 +209,20 @@ class StateMachine:
         self.logger.error("等待游戏进程超时")
         return False
 
+    def kill_game(self) -> None:
+        for proc in psutil.process_iter(attrs=["name", "pid"]):
+            try:
+                if proc.info["name"] in config.GAME_PROCESS_NAMES:
+                    self.logger.info(f"结束进程 {proc.info['name']} ({proc.info['pid']})")
+                    proc.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
     def wait_login_with_safe_clicks(self, state: State) -> Optional[State]:
         start = time.time()
         best_mainmenu = -1.0
         best_connecting = -1.0
-        best_login_ui = -1.0
+        best_title = -1.0
 
         while time.time() - start <= config.STATE_TIMEOUTS["S1_WAIT_LOGIN"]:
             img = screen.capture_window(config.GAME_WINDOW_TITLE)
@@ -227,17 +237,17 @@ class StateMachine:
                 best_mainmenu = main_score
                 self.logger.info(f"[{state.value}] 主菜单最高分更新为 {best_mainmenu:.4f}")
 
-            login_hit, _, login_score = screen.template_match_roi(
+            title_hit, _, title_score = screen.template_match_roi(
                 img,
-                config.LOGIN_UI_MARKER,
-                config.LOGIN_UI_ROI,
-                config.LOGIN_UI_THRESHOLD,
+                config.LOGIN_MARKER,
+                config.TITLE_ROI,
+                config.TITLE_THRESHOLD,
             )
-            if login_score > best_login_ui:
-                best_login_ui = login_score
+            if title_score > best_title:
+                best_title = title_score
                 self.logger.info(
-                    f"[{state.value}] 登录UI最高分更新为 {best_login_ui:.4f} "
-                    f"(阈值 {config.LOGIN_UI_THRESHOLD:.2f})"
+                    f"[{state.value}] 标题最高分更新为 {best_title:.4f} "
+                    f"(阈值 {config.TITLE_THRESHOLD:.2f})"
                 )
 
             if main_hit:
@@ -245,14 +255,16 @@ class StateMachine:
                 return State.S_OK
 
             if connecting_hit:
-                self.logger.info(f"[{state.value}] 检测到连接标记，停止点击，匹配分 {connecting_score:.4f}")
+                self.logger.info(
+                    f"[{state.value}] 检测到连接标记，停止点击，匹配分 {connecting_score:.4f}"
+                )
                 return State.S3_WAIT_MAINMENU
 
-            allow_click = login_hit
+            allow_click = title_hit
             if not allow_click:
                 self.logger.info(
-                    f"[{state.value}] 登录UI匹配分 {login_score:.4f}，未达阈值 "
-                    f"{config.LOGIN_UI_THRESHOLD:.2f}，跳过点击"
+                    f"[{state.value}] 标题匹配分 {title_score:.4f}，未达阈值 "
+                    f"{config.TITLE_THRESHOLD:.2f}，跳过点击"
                 )
             else:
                 now = time.time()
@@ -270,13 +282,16 @@ class StateMachine:
                     else:
                         screen.click_point(point)
                         self.last_click_ts = now
-                        self.logger.info(f"[{state.value}] 安全点击窗口坐标 {point}")
+                        self.logger.info(
+                            f"[{state.value}] 安全点击窗口坐标 {point}，标题匹配分 {title_score:.4f}"
+                        )
 
             time.sleep(config.CHECK_INTERVAL)
 
         self.fail(
             state,
-            f"登录等待超时，主菜单最高分 {best_mainmenu:.4f}，连接最高分 {best_connecting:.4f}",
+            "登录等待超时，主菜单最高分 "
+            f"{best_mainmenu:.4f}，连接最高分 {best_connecting:.4f}，标题最高分 {best_title:.4f}",
         )
         return None
 

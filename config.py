@@ -1,10 +1,8 @@
-import os
 from pathlib import Path
 
 # Directories
 PROJECT_ROOT = Path(__file__).resolve().parent
-_DESKTOP = Path(os.environ.get("USERPROFILE", Path.home())) / "Desktop"
-LOG_DIR = _DESKTOP / "limbus_automation_logs"
+LOG_DIR = PROJECT_ROOT / "logs"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 
 # Window / process configuration
@@ -33,11 +31,10 @@ CLICK_COOLDOWN = 2.5
 
 # Template match settings
 TEMPLATE_MATCH_THRESHOLD = 0.85
-LOGIN_UI_THRESHOLD = 0.55
-LOGIN_UI_ROI = (0.0, 0.70, 0.35, 0.30)
+TITLE_THRESHOLD = 0.55
+TITLE_ROI = (0.15, 0.60, 0.70, 0.30)
 
 # Assets
 LOGIN_MARKER = ASSETS_DIR / "login_marker_A.png"
-LOGIN_UI_MARKER = ASSETS_DIR / "login_ui_marker.png"
 CONNECTING_MARKER = ASSETS_DIR / "connecting_marker.png"
 MAINMENU_MARKER = ASSETS_DIR / "mainmenu_marker_B.png"
