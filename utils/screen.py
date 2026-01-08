@@ -9,6 +9,7 @@ import pyautogui
 import win32con
 import win32gui
 import win32ui
+import win32process
 
 import config
 
@@ -40,6 +41,33 @@ def get_window_rect(title: str) -> Optional[Tuple[int, int, int, int]]:
     if hwnd is None:
         return None
     return _get_window_rect(hwnd)
+
+
+def find_main_window_by_pid(pid: int) -> Optional[int]:
+    hwnds: list[int] = []
+
+    def _enum_handler(hwnd: int, _extra: int) -> None:
+        if not win32gui.IsWindowVisible(hwnd):
+            return
+        if win32gui.GetParent(hwnd) != 0:
+            return
+        _, window_pid = win32process.GetWindowThreadProcessId(hwnd)
+        if window_pid == pid:
+            hwnds.append(hwnd)
+
+    win32gui.EnumWindows(_enum_handler, 0)
+    return hwnds[0] if hwnds else None
+
+
+def get_window_rect_by_hwnd(hwnd: int) -> Optional[Tuple[int, int, int, int]]:
+    return _get_window_rect(hwnd)
+
+
+def get_window_text(hwnd: int) -> str:
+    try:
+        return win32gui.GetWindowText(hwnd)
+    except win32gui.error:
+        return ""
 
 
 def focus_window(hwnd: int) -> bool:

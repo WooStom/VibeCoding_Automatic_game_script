@@ -27,6 +27,7 @@ class StateMachine:
         self.logger = setup_logger()
         self.last_marker_position: Optional[Tuple[int, int]] = None
         self.last_click_ts: float = 0.0
+        self.game_pid: Optional[int] = None
 
     def run(self) -> None:
         state = State.S0_START
@@ -140,25 +141,38 @@ class StateMachine:
         sys.exit(1)
 
     def ensure_game_running(self) -> bool:
-        if self._has_running_game_process():
+        pid = self._get_game_pid()
+        if pid is not None:
+            self.game_pid = pid
             return True
         self.logger.info("未检测到游戏进程，尝试通过 Steam 启动")
         if self._launch_game_via_steam():
-            return self._wait_for_process(config.STATE_TIMEOUTS["GAME_BOOT"])
+            pid = self._wait_for_process(config.STATE_TIMEOUTS["GAME_BOOT"])
+            if pid is not None:
+                self.game_pid = pid
+                return True
+            return False
         return False
 
     def wait_game_ready(self) -> bool:
         self.logger.info("等待游戏就绪…")
         start = time.time()
         while time.time() - start <= config.GAME_READY_TIMEOUT:
-            hwnd = screen.get_window_handle(config.GAME_WINDOW_TITLE)
+            pid = self.game_pid or self._get_game_pid()
+            self.game_pid = pid
+            hwnd = screen.find_main_window_by_pid(pid) if pid else None
+            if hwnd is None:
+                hwnd = screen.get_window_handle(config.GAME_WINDOW_TITLE)
             has_hwnd = hwnd is not None
             focused = screen.focus_window(hwnd) if hwnd else False
+            window_title = screen.get_window_text(hwnd) if hwnd else ""
+            rect = screen.get_window_rect_by_hwnd(hwnd) if hwnd else None
             image, source, (width, height) = screen.capture_window_with_info(config.GAME_WINDOW_TITLE)
             is_valid_shape = width > 0 and height > 0
             black = screen.is_mostly_black(image)
             self.logger.info(
-                f"[{State.S0_START.value}] hwnd={'Y' if has_hwnd else 'N'}, focus={'Y' if focused else 'N'}, "
+                f"[{State.S0_START.value}] pid={pid}, hwnd={'Y' if has_hwnd else 'N'}, "
+                f"focus={'Y' if focused else 'N'}, 标题={window_title!r}, rect={rect}, "
                 f"截图来源={source}, 尺寸={width}x{height}, 黑屏={black}"
             )
             if (has_hwnd and focused) or (is_valid_shape and not black):
@@ -167,7 +181,11 @@ class StateMachine:
         return False
 
     def ensure_foreground(self) -> bool:
-        hwnd = screen.get_window_handle(config.GAME_WINDOW_TITLE)
+        pid = self.game_pid or self._get_game_pid()
+        self.game_pid = pid
+        hwnd = screen.find_main_window_by_pid(pid) if pid else None
+        if hwnd is None:
+            hwnd = screen.get_window_handle(config.GAME_WINDOW_TITLE)
         if hwnd is None:
             return False
         focused = screen.focus_window(hwnd)
@@ -175,14 +193,17 @@ class StateMachine:
             self.logger.warning("尝试激活窗口失败")
         return focused
 
-    def _has_running_game_process(self) -> bool:
+    def _get_game_pid(self) -> Optional[int]:
         for proc in psutil.process_iter(attrs=["name"]):
             try:
                 if proc.info["name"] in config.GAME_PROCESS_NAMES:
-                    return True
+                    return proc.pid
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
-        return False
+        return None
+
+    def _has_running_game_process(self) -> bool:
+        return self._get_game_pid() is not None
 
     def _launch_game_via_steam(self) -> bool:
         try:
@@ -199,15 +220,16 @@ class StateMachine:
             self.logger.error(f"Steam 启动失败: {exc!r}")
             return False
 
-    def _wait_for_process(self, timeout: float) -> bool:
+    def _wait_for_process(self, timeout: float) -> Optional[int]:
         start = time.time()
         while time.time() - start <= timeout:
-            if self._has_running_game_process():
+            pid = self._get_game_pid()
+            if pid is not None:
                 self.logger.info("检测到游戏进程已启动")
-                return True
+                return pid
             time.sleep(1.0)
         self.logger.error("等待游戏进程超时")
-        return False
+        return None
 
     def kill_game(self) -> None:
         for proc in psutil.process_iter(attrs=["name", "pid"]):
