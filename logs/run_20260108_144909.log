@@ -1,0 +1,14 @@
+2026-01-08 14:49:09 [INFO] [limbus_automation] 进入状态 S0_START
+2026-01-08 14:49:09 [INFO] [limbus_automation] 等待游戏就绪…
+2026-01-08 14:49:09 [INFO] [limbus_automation] [S0_START] pid=178536, hwnd=Y, focus=Y, 标题='LimbusCompany', rect=(-7, 0, 1936, 1048), 截图来源=window, 尺寸=1936x1048, 黑屏=False
+2026-01-08 14:49:09 [INFO] [limbus_automation] 切换到 S1_WAIT_LOGIN
+2026-01-08 14:49:09 [INFO] [limbus_automation] [S1_WAIT_LOGIN] 连接最高分更新为 0.9682
+2026-01-08 14:49:09 [INFO] [limbus_automation] [S1_WAIT_LOGIN] 主菜单最高分更新为 0.8204
+2026-01-08 14:49:09 [INFO] [limbus_automation] [S1_WAIT_LOGIN] 标题最高分更新为 0.1977 (阈值 0.55)
+2026-01-08 14:49:09 [INFO] [limbus_automation] [S1_WAIT_LOGIN] 检测到连接标记，停止点击，匹配分 0.9682
+2026-01-08 14:49:09 [INFO] [limbus_automation] 切换到 S3_WAIT_MAINMENU
+2026-01-08 14:49:09 [INFO] [limbus_automation] [S3_WAIT_MAINMENU] 当前最高分 0.8204
+2026-01-08 14:49:10 [INFO] [limbus_automation] [S3_WAIT_MAINMENU] 当前最高分 0.8207
+2026-01-08 14:49:11 [INFO] [limbus_automation] [S3_WAIT_MAINMENU] 当前最高分 0.8209
+2026-01-08 14:49:11 [INFO] [limbus_automation] [S3_WAIT_MAINMENU] 当前最高分 0.8209
+2026-01-08 14:49:12 [INFO] [limbus_automation] [S3_WAIT_MAINMENU] 当前最高分 0.8210
